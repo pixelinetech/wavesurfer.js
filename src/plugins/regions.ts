@@ -25,7 +25,7 @@ export type RegionEvents = {
   /** Before the region is removed */
   remove: []
   /** When the region's parameters are being updated */
-  update: [side?: 'start' | 'end']
+  update: [side?: 'start' | 'end' | null, element?: HTMLElement | null]
   /** When dragging or resizing is finished */
   'update-end': []
   /** On play */
@@ -65,7 +65,7 @@ export type RegionParams = {
   contentEditable?: boolean
 }
 
-export class Region extends EventEmitter<RegionEvents> {
+class Region extends EventEmitter<RegionEvents> {
   public element: HTMLElement
   public id: string
   public start: number
@@ -79,6 +79,9 @@ export class Region extends EventEmitter<RegionEvents> {
   public channelIdx: number
   public contentEditable = false
   public subscriptions: (() => void)[] = []
+  public regionsList: { start: number, end: number, content: string, color: string, drag: boolean, resize: boolean, }[] = []
+  public regionsListIndex: number
+  public divForDuration?: HTMLElement
 
   constructor(params: RegionParams, private totalDuration: number, private numberOfChannels = 0) {
     super()
@@ -95,8 +98,15 @@ export class Region extends EventEmitter<RegionEvents> {
     this.channelIdx = params.channelIdx ?? -1
     this.contentEditable = params.contentEditable ?? this.contentEditable
     this.element = this.initElement()
+
+    this.regionsListIndex = 0
+
+    this.divForDuration = this.setDivForDuration()
+
     this.setContent(params.content)
     this.setPart()
+
+
 
     this.renderPosition()
     this.initMouseEvents()
@@ -115,9 +125,9 @@ export class Region extends EventEmitter<RegionEvents> {
     const handleStyle = {
       position: 'absolute',
       zIndex: '2',
-      width: '6px',
-      height: '100%',
-      top: '0',
+      width: '13px',
+      height: 'calc(100% + 4px)',
+      top: '-2px',
       cursor: 'ew-resize',
       wordBreak: 'keep-all',
     }
@@ -129,8 +139,8 @@ export class Region extends EventEmitter<RegionEvents> {
         style: {
           ...handleStyle,
           left: '0',
-          borderLeft: '2px solid rgba(0, 0, 0, 0.5)',
-          borderRadius: '2px 0 0 2px',
+          borderTopLeftRadius: '8px',
+          borderBottomLeftRadius: '8px',
         },
       },
       element,
@@ -143,8 +153,8 @@ export class Region extends EventEmitter<RegionEvents> {
         style: {
           ...handleStyle,
           right: '0',
-          borderRight: '2px solid rgba(0, 0, 0, 0.5)',
-          borderRadius: '0 2px 2px 0',
+          borderTopRightRadius: '8px',
+          borderBottomRightRadius: '8px',
         },
       },
       element,
@@ -155,17 +165,23 @@ export class Region extends EventEmitter<RegionEvents> {
     this.subscriptions.push(
       makeDraggable(
         leftHandle,
-        (dx) => this.onResize(dx, 'start'),
+        (dx, dy, x, y, element) => this.onResize(dx, 'start', element),
         () => null,
         () => this.onEndResizing(),
         resizeThreshold,
+        0,
+        100,
+        'start'
       ),
       makeDraggable(
         rightHandle,
-        (dx) => this.onResize(dx, 'end'),
+        (dx, dy, x, y, element) => this.onResize(dx, 'end', element),
         () => null,
         () => this.onEndResizing(),
         resizeThreshold,
+        0,
+        100,
+        'end'
       ),
     )
   }
@@ -199,9 +215,9 @@ export class Region extends EventEmitter<RegionEvents> {
         height: `${elementHeight}%`,
         backgroundColor: isMarker ? 'none' : this.color,
         borderLeft: isMarker ? '2px solid ' + this.color : 'none',
-        borderRadius: '2px',
+        borderRadius: '8px',
         boxSizing: 'border-box',
-        transition: 'background-color 0.2s ease',
+        // transition: 'background-color 0.2s ease',
         cursor: this.drag ? 'grab' : 'default',
         pointerEvents: 'all',
       },
@@ -220,6 +236,21 @@ export class Region extends EventEmitter<RegionEvents> {
     const end = (this.totalDuration - this.end) / this.totalDuration
     this.element.style.left = `${start * 100}%`
     this.element.style.right = `${end * 100}%`
+
+    if (this.divForDuration) {
+      const elementWidth = this.element.getBoundingClientRect().width
+      this.divForDuration.style.display = elementWidth && elementWidth < 80 ? 'none' : ''
+      this.divForDuration.textContent = this.parseDuration(this.end - this.start)
+    }
+  }
+
+  private parseDuration(seconds: number): string {
+    let hours: number = Math.floor(seconds / 3600);
+    let minutes: number = Math.floor((seconds % 3600) / 60);
+    let secs: string = (seconds % 60).toFixed(1);
+    let minutesStr: string = minutes < 10 ? '0' + minutes : minutes.toString();
+    let secsStr: string = Number(secs) < 10 ? '0' + secs.toString() : secs.toString();
+    return `${hours > 0 ? hours + ':' : ''}${minutesStr}:${secsStr}`;
   }
 
   private toggleCursor(toggle: boolean) {
@@ -242,7 +273,7 @@ export class Region extends EventEmitter<RegionEvents> {
     this.subscriptions.push(
       makeDraggable(
         element,
-        (dx) => this.onMove(dx),
+        (dx, dy, x, y, element) => this.onMove(dx, element),
         () => this.toggleCursor(true),
         () => {
           this.toggleCursor(false)
@@ -257,37 +288,59 @@ export class Region extends EventEmitter<RegionEvents> {
     }
   }
 
-  public _onUpdate(dx: number, side?: 'start' | 'end') {
+  public _onUpdate(dx: number, side?: 'start' | 'end' | null, element?: HTMLElement | null) {
     if (!this.element.parentElement) return
     const { width } = this.element.parentElement.getBoundingClientRect()
     const deltaSeconds = (dx / width) * this.totalDuration
-    const newStart = !side || side === 'start' ? this.start + deltaSeconds : this.start
-    const newEnd = !side || side === 'end' ? this.end + deltaSeconds : this.end
+    let newStart = !side || side === 'start' ? this.start + deltaSeconds : this.start
+    let newEnd = !side || side === 'end' ? this.end + deltaSeconds : this.end
     const length = newEnd - newStart
 
-    if (
-      newStart >= 0 &&
-      newEnd <= this.totalDuration &&
-      newStart <= newEnd &&
-      length >= this.minLength &&
-      length <= this.maxLength
-    ) {
+    let overlapWithAnotherRegion = false
+    if (this.regionsList.length) {
+      if (this.regionsList[this.regionsListIndex-1] && newStart < this.regionsList[this.regionsListIndex-1].end) {
+        newStart = this.regionsList[this.regionsListIndex-1].end + 0.000000001
+        if (side) { newEnd = newStart + (newEnd - newStart) }
+        else { newEnd = newStart + (this.end - this.start) }
+        overlapWithAnotherRegion = true
+      }
+      else if (this.regionsList[this.regionsListIndex+1] && newEnd > this.regionsList[this.regionsListIndex+1].start) {
+        newEnd = this.regionsList[this.regionsListIndex+1].start - 0.000000001
+        if (side) { newStart = newEnd - (newEnd - newStart) }
+        else { newStart = newEnd - (this.end - this.start) }
+        overlapWithAnotherRegion = true
+      }
+    }
+
+    if (overlapWithAnotherRegion) {
+      this.start = newStart
+      this.end = newEnd
+      this.renderPosition()
+      this.emit('update', side, element)
+      return
+    }
+
+    if (newStart >= 0
+        && newEnd <= this.totalDuration
+        && newStart <= newEnd
+        && length >= this.minLength
+        && length <= this.maxLength ) {
       this.start = newStart
       this.end = newEnd
 
       this.renderPosition()
-      this.emit('update', side)
+      this.emit('update', side, element)
     }
   }
 
-  private onMove(dx: number) {
+  private onMove(dx: number, element?: HTMLElement | null) {
     if (!this.drag) return
-    this._onUpdate(dx)
+    this._onUpdate(dx, null, element)
   }
 
-  private onResize(dx: number, side: 'start' | 'end') {
+  private onResize(dx: number, side: 'start' | 'end' | null, element?: HTMLElement | null) {
     if (!this.resize) return
-    this._onUpdate(dx, side)
+    this._onUpdate(dx, side, element)
   }
 
   private onEndResizing() {
@@ -340,6 +393,18 @@ export class Region extends EventEmitter<RegionEvents> {
     }
     this.content.setAttribute('part', 'region-content')
     this.element.appendChild(this.content)
+  }
+
+  /** Set DIV to the region for showing region duration */
+  public setDivForDuration() {
+    const isMarker = this.start === this.end
+    if (isMarker) { return }
+    const divForDuration = createElement('div', {
+      style: {},
+    })
+    divForDuration.setAttribute('part', 'region-div-duration')
+    this.element.appendChild(divForDuration)
+    return divForDuration
   }
 
   /** Update the region's options */

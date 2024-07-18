@@ -1,11 +1,12 @@
 export function makeDraggable(
   element: HTMLElement | null,
-  onDrag: (dx: number, dy: number, x: number, y: number) => void,
+  onDrag: (dx: number, dy: number, x: number, y: number, element: HTMLElement | null) => void,
   onStart?: (x: number, y: number) => void,
   onEnd?: (x: number, y: number) => void,
   threshold = 3,
   mouseButton = 0,
   touchDelay = 100,
+  side: string | null = null,
 ): () => void {
   if (!element) return () => void 0
 
@@ -24,6 +25,12 @@ export function makeDraggable(
     let isDragging = false
     const touchStartTime = Date.now()
 
+    let startXFromRectLeft = 0
+    if (!side) {
+      const periodRectLeft = element.getBoundingClientRect().left
+      startXFromRectLeft = event.clientX - periodRectLeft
+    }
+
     const onPointerMove = (event: PointerEvent) => {
       event.preventDefault()
       event.stopPropagation()
@@ -37,14 +44,35 @@ export function makeDraggable(
 
       if (isDragging || Math.abs(dx) > threshold || Math.abs(dy) > threshold) {
         const rect = element.getBoundingClientRect()
-        const { left, top } = rect
+        const { left, top, right } = rect
 
         if (!isDragging) {
           onStart?.(startX - left, startY - top)
           isDragging = true
         }
 
-        onDrag(dx, dy, x - left, y - top)
+        let leaveEarlier = false
+        if ( side === 'start'
+          && ( (dx > 0 && x < left) || (dx < 0 && x > right) )
+        ) {
+          leaveEarlier = true
+        }
+        else if (side === 'end' && ( (dx > 0 && x < left) || (dx < 0 && x > right) )) {
+          leaveEarlier = true
+        }
+        else if (!side) {
+          const currentStartXFromRectLeft = event.clientX - left
+          if ((dx > 0 && currentStartXFromRectLeft < startXFromRectLeft) || (dx < 0 && currentStartXFromRectLeft > startXFromRectLeft)) {
+            leaveEarlier = true
+          }
+        }
+        if (leaveEarlier) {
+          startX = x
+          startY = y
+          return
+        }
+
+        onDrag(dx, dy, x - left, y - top, element)
 
         startX = x
         startY = y

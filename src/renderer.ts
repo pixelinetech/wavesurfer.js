@@ -549,11 +549,18 @@ class Renderer extends EventEmitter<RendererEvents> {
       const offset = index * singleCanvasWidth
       const clampedWidth = Math.min(totalWidth - offset, singleCanvasWidth)
       if (clampedWidth <= 0) return
+      // TODO: calculate array of images related to current canvas.
+      // const imageCapacityInCanvas = Math.ceil(singleCanvasWidth / 90)
+      // const startImageIndex = imageCapacityInCanvas * index
+      // const endImageIndex = startImageIndex + imageCapacityInCanvas
+      // imagesArrayForCanvas = imagesGeneralArray.slice(startImageIndex, endImageIndex)
+      // todo: create all this images
       const data = channelData.map((channel) => {
         const start = Math.floor((offset / totalWidth) * channel.length)
         const end = Math.floor(((offset + clampedWidth) / totalWidth) * channel.length)
         return channel.slice(start, end)
       })
+      // todo: add imagesArrayForCanvas to props
       this.renderSingleCanvas(data, options, clampedWidth, height, offset, canvasContainer, progressContainer)
     }
 
