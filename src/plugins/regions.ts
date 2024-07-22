@@ -222,6 +222,7 @@ class Region extends EventEmitter<RegionEvents> {
         pointerEvents: 'all',
       },
     })
+    element.tabIndex = 0
 
     // Add resize handles
     if (!isMarker && this.resize) {

@@ -51,6 +51,9 @@ class Renderer extends EventEmitter<RendererEvents> {
     this.progressWrapper = shadow.querySelector('.progress') as HTMLElement
     this.cursor = shadow.querySelector('.cursor') as HTMLElement
 
+
+
+
     if (audioElement) {
       shadow.appendChild(audioElement)
     }

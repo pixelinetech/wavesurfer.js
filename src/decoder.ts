@@ -32,8 +32,6 @@ function createBuffer(channelData: Array<Float32Array | number[]>, duration: num
   // Normalize to -1..1
   normalize(channelData)
 
-  console.log('TOLKA PLUSU: ', channelData)
-
   return {
     duration,
     length: channelData[0].length,
