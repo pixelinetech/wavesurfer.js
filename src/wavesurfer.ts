@@ -122,6 +122,8 @@ export type WaveSurferEvents = {
   interaction: [newTime: number]
   /** When the user clicks on the waveform */
   click: [relativeX: number, relativeY: number]
+  /** When the user mousedown on the waveform */
+  mousedown: [{}]
   /** When the user double-clicks on the waveform */
   dblclick: [relativeX: number, relativeY: number]
   /** When the user drags the cursor */
@@ -262,11 +264,15 @@ class WaveSurfer extends Player<WaveSurferEvents> {
     this.subscriptions.push(
       // Seek on click
       this.renderer.on('click', (relativeX, relativeY) => {
+        console.log('click 2')
         if (this.options.interact) {
           this.seekTo(relativeX)
           this.emit('interaction', relativeX * this.getDuration())
           this.emit('click', relativeX, relativeY)
         }
+      }),
+      this.renderer.on('mousedown', (e) => {
+        this.emit('mousedown', e)
       }),
 
       // Double click
