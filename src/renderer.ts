@@ -91,7 +91,6 @@ class Renderer extends EventEmitter<RendererEvents> {
     this.wrapper.addEventListener('click', (e) => {
       const [x, y] = getClickPosition(e)
       this.emit('click', x, y)
-      console.log('click 1')
     })
 
     // Add a double click listener
@@ -733,7 +732,8 @@ class Renderer extends EventEmitter<RendererEvents> {
       } else if (progressWidth - minGap < startEdge) {
         this.scrollContainer.scrollLeft -= minGap
       }
-    } else {
+    }
+    else {
       if (progressWidth < startEdge || progressWidth > endEdge) {
         this.scrollContainer.scrollLeft = progressWidth - (this.options.autoCenter ? middle : 0)
       }

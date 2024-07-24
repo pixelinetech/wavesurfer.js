@@ -25,7 +25,7 @@ export type RegionEvents = {
   /** Before the region is removed */
   remove: []
   /** When the region's parameters are being updated */
-  update: [side?: 'start' | 'end' | null, element?: HTMLElement | null]
+  update: [side?: 'start' | 'end' | null, element?: HTMLElement | null, dx?: number]
   /** When dragging or resizing is finished */
   'update-end': []
   /** On play */
@@ -313,24 +313,18 @@ class Region extends EventEmitter<RegionEvents> {
       }
     }
 
-    if (overlapWithAnotherRegion) {
-      this.start = newStart
-      this.end = newEnd
-      this.renderPosition()
-      this.emit('update', side, element)
-      return
-    }
-
-    if (newStart >= 0
-        && newEnd <= this.totalDuration
-        && newStart <= newEnd
-        && length >= this.minLength
-        && length <= this.maxLength ) {
+    if ( overlapWithAnotherRegion
+        || (newStart >= 0
+            && newEnd <= this.totalDuration
+            && newStart <= newEnd
+            && length >= this.minLength
+            && length <= this.maxLength)
+    ) {
       this.start = newStart
       this.end = newEnd
 
       this.renderPosition()
-      this.emit('update', side, element)
+      this.emit('update', side, element, dx)
     }
   }
 
@@ -555,7 +549,7 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
     }, 10)
   }
 
-  private adjustScroll(region: Region) {
+  private adjustScroll(region: Region, dx= 0) {
     const scrollContainer = this.wavesurfer?.getWrapper()?.parentElement
     if (!scrollContainer) return
     const { clientWidth, scrollWidth } = scrollContainer
@@ -564,14 +558,17 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
     const bbox = region.element.getBoundingClientRect()
     const left = bbox.left - scrollBbox.left
     const right = bbox.right - scrollBbox.left
-    if (left < 0) {
+
+    if (left < 0 && bbox.width < clientWidth && dx < 0) {
       scrollContainer.scrollLeft += left
-    } else if (right > clientWidth) {
+    }
+    else if (right > clientWidth && bbox.width < clientWidth && dx > 0) {
       scrollContainer.scrollLeft += right - clientWidth
     }
   }
 
   private virtualAppend(region: Region, container: HTMLElement, element: HTMLElement) {
+
     const renderIfVisible = () => {
       if (!this.wavesurfer) return
       const clientWidth = this.wavesurfer.getWidth()
@@ -606,10 +603,10 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
     this.regions.push(region)
 
     const regionSubscriptions = [
-      region.on('update', (side) => {
+      region.on('update', (side, element, dx) => {
         // Undefined side indicates that we are dragging not resizing
         if (!side) {
-          this.adjustScroll(region)
+          this.adjustScroll(region, dx)
         }
       }),
 

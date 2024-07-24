@@ -264,7 +264,6 @@ class WaveSurfer extends Player<WaveSurferEvents> {
     this.subscriptions.push(
       // Seek on click
       this.renderer.on('click', (relativeX, relativeY) => {
-        console.log('click 2')
         if (this.options.interact) {
           this.seekTo(relativeX)
           this.emit('interaction', relativeX * this.getDuration())
