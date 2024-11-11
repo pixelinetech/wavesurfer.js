@@ -18,7 +18,7 @@ export type RegionsPluginEvents = BasePluginEvents & {
   'region-clicked': [region: Region, e: MouseEvent]
   'region-double-clicked': [region: Region, e: MouseEvent]
   'region-in': [region: Region]
-  'region-out': [region: Region]
+  'region-out': [region: Region] | null
 }
 
 export type RegionEvents = {
@@ -456,6 +456,7 @@ class Region extends EventEmitter<RegionEvents> {
 class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions> {
   private regions: Region[] = []
   private regionsContainer: HTMLElement
+  private regionIn: Region | null = null
 
   /** Create an instance of RegionsPlugin */
   constructor(options?: RegionsPluginOptions) {
@@ -475,6 +476,8 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
     }
     this.wavesurfer.getWrapper().appendChild(this.regionsContainer)
 
+    // this.regionIn = null
+
     let activeRegions: Region[] = []
     this.subscriptions.push(
       this.wavesurfer.on('timeupdate', (currentTime) => {
@@ -486,18 +489,40 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
         )
 
         // Trigger region-in when activeRegions doesn't include a played regions
-        playedRegions.forEach((region) => {
-          if (!activeRegions.includes(region)) {
-            this.emit('region-in', region)
+        // playedRegions.forEach((region) => {
+        //   if (!activeRegions.includes(region)) {
+        //     this.emit('region-in', region)
+        //   }
+        // })
+        if (this.wavesurfer?.isPlaying()) {
+          let regionInFound = false
+          for (let i = 0; i < this.regions.length; i++) {
+            if (currentTime >= this.regions[i].start && currentTime <= this.regions[i].end) {
+              regionInFound = true
+              if (!this.regionIn || this.regionIn !== this.regions[i]) {
+                this.regionIn = this.regions[i]
+                console.log('REGION IN')
+                this.emit('region-in',  this.regions[i])
+              }
+              break
+            }
           }
-        })
+          if (!regionInFound && this.regionIn) {
+            console.log('REGION OUT')
+            this.emit('region-out', this.regionIn)
+            this.regionIn = null
+          }
+        }
 
         // Trigger region-out when activeRegions include a un-played regions
-        activeRegions.forEach((region) => {
-          if (!playedRegions.includes(region)) {
-            this.emit('region-out', region)
-          }
-        })
+        // if (this.wavesurfer?.isPlaying()) {
+        //   activeRegions.forEach((region) => {
+        //     console.log('DEBIL BLYAT')
+        //     if (!playedRegions.includes(region)) {
+        //       this.emit('region-out', region)
+        //     }
+        //   })
+        // }
 
         // Update activeRegions only played regions
         activeRegions = playedRegions
