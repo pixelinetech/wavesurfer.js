@@ -25,6 +25,7 @@ class Renderer extends EventEmitter<RendererEvents> {
   private canvasWrapper: HTMLElement
   private progressWrapper: HTMLElement
   private cursor: HTMLElement
+  private cursorDragger: HTMLElement
   private timeouts: Array<() => void> = []
   private isScrollable = false
   private audioData: AudioBuffer | null = null
@@ -51,6 +52,7 @@ class Renderer extends EventEmitter<RendererEvents> {
     this.canvasWrapper = shadow.querySelector('.canvases') as HTMLElement
     this.progressWrapper = shadow.querySelector('.progress') as HTMLElement
     this.cursor = shadow.querySelector('.cursor') as HTMLElement
+    this.cursorDragger = shadow.querySelector('.cursorDragger') as HTMLElement
 
 
 
@@ -103,6 +105,8 @@ class Renderer extends EventEmitter<RendererEvents> {
     if (this.options.dragToSeek === true || typeof this.options.dragToSeek === 'object') {
       this.initDrag()
     }
+
+    this.makeCursorDraggable()
 
     // Add a scroll listener
     this.scrollContainer.addEventListener('scroll', () => {
@@ -157,6 +161,22 @@ class Renderer extends EventEmitter<RendererEvents> {
     )
   }
 
+  private makeCursorDraggable() {
+    console.log('call of: makeCursorDraggable')
+    this.subscriptions.push(
+      makeDraggable(
+        this.cursor,
+        (dx, dy, x, y, element) => {
+          console.log('DRAG EVENT ', dx, dy, x, y, element, this.wrapper)
+          const newProgress = (parseFloat(this.cursor.style.left) + (dx * 100 / this.getWidth())) / 100
+          this.renderProgress(newProgress, false)
+        },
+        // (dx, dy) => console.log('DRAG START EVENT ', dx, dy),
+        // (dx, dy) => console.log('DRAG END EVENT ', dx, dy),
+      ),
+    )
+  }
+
   private getHeight(
     optionsHeight?: WaveSurferOptions['height'],
     optionsSplitChannel?: WaveSurferOptions['splitChannels'],
@@ -192,6 +212,7 @@ class Renderer extends EventEmitter<RendererEvents> {
           overflow-y: hidden;
           width: 100%;
           position: relative;
+          padding-top: 20px;
         }
         :host .noScrollbar {
           scrollbar-color: transparent;
@@ -235,10 +256,23 @@ class Renderer extends EventEmitter<RendererEvents> {
           pointer-events: none;
           position: absolute;
           z-index: 5;
-          top: 0;
+          top: -20px;
           left: 0;
-          height: 100%;
+          height: calc(100% + 20px);
           border-radius: 2px;
+        }
+        :host .cursorDragger {
+          position:absolute;
+          top: 0;
+          width: 16px;
+          height: 20px;
+          left: -7px;
+          clip-path: polygon(0 0, 100% 0%, 100% 70%, 50% 100%, 0 70%);
+          pointer-events: all;
+          cursor: grab;
+        }
+        :host .cursorDragger:active {
+          cursor: grabbing;
         }
       </style>
 
@@ -246,7 +280,9 @@ class Renderer extends EventEmitter<RendererEvents> {
         <div class="wrapper" part="wrapper">
           <div class="canvases" part="canvases"></div>
           <div class="progress" part="progress"></div>
-          <div class="cursor" part="cursor"></div>
+          <div class="cursor" part="cursor">
+            <div class="cursorDragger" part="cursorDragger"></div>
+          </div>
         </div>
       </div>
     `
@@ -266,6 +302,8 @@ class Renderer extends EventEmitter<RendererEvents> {
     if (options.dragToSeek === true || typeof this.options.dragToSeek === 'object') {
       this.initDrag()
     }
+
+    this.makeCursorDraggable()
 
     this.options = options
 
@@ -660,6 +698,7 @@ class Renderer extends EventEmitter<RendererEvents> {
     // Set additional styles
     this.scrollContainer.style.overflowX = this.isScrollable ? 'auto' : 'hidden'
     this.scrollContainer.classList.toggle('noScrollbar', !!this.options.hideScrollbar)
+    this.cursorDragger.style.backgroundColor = `${this.options.cursorColor || this.options.progressColor}`
     this.cursor.style.backgroundColor = `${this.options.cursorColor || this.options.progressColor}`
     this.cursor.style.width = `${this.options.cursorWidth}px`
 
