@@ -1,6 +1,7 @@
 import { makeDraggable } from './draggable.js'
 import EventEmitter from './event-emitter.js'
 import type { WaveSurferOptions } from './wavesurfer.js'
+import WaveSurfer from "./wavesurfer.js";
 
 type RendererEvents = {
   click: [relativeX: number, relativeY: number]
@@ -34,8 +35,9 @@ class Renderer extends EventEmitter<RendererEvents> {
   private isDragging = false
   private subscriptions: (() => void)[] = []
   private unsubscribeOnScroll?: () => void
+  private wavesurfer?: WaveSurfer
 
-  constructor(options: WaveSurferOptions, audioElement?: HTMLElement) {
+  constructor(options: WaveSurferOptions, audioElement?: HTMLElement, wavesurfer?:WaveSurfer) {
     super()
 
     this.subscriptions = []
@@ -54,8 +56,7 @@ class Renderer extends EventEmitter<RendererEvents> {
     this.cursor = shadow.querySelector('.cursor') as HTMLElement
     this.cursorDragger = shadow.querySelector('.cursorDragger') as HTMLElement
 
-
-
+    this.wavesurfer = wavesurfer
 
     if (audioElement) {
       shadow.appendChild(audioElement)
@@ -170,8 +171,14 @@ class Renderer extends EventEmitter<RendererEvents> {
           let newProgress = (parseFloat(this.cursor.style.left) + (dx * 100 / this.getWidth())) / 100
           if (newProgress < 0) { newProgress = 0 }
           if (newProgress > 1) { newProgress = 1 }
-          console.log('DRAG EVENT newProgress: ', newProgress)
+          console.log('DRAG EVENT newProgress: ', newProgress, this)
+          // this.wavesurfer?.setTime(newProgress)
           this.renderProgress(newProgress, false)
+          const duration = this.wavesurfer?.getDuration()
+          if (duration) {
+            const newTime = duration * newProgress
+            this.wavesurfer?.setTime(newTime)
+          }
         },
         // (dx, dy) => console.log('DRAG START EVENT ', dx, dy),
         // (dx, dy) => console.log('DRAG END EVENT ', dx, dy),
