@@ -167,8 +167,10 @@ class Renderer extends EventEmitter<RendererEvents> {
       makeDraggable(
         this.cursor,
         (dx, dy, x, y, element) => {
-          console.log('DRAG EVENT ', dx, dy, x, y, element, this.wrapper)
-          const newProgress = (parseFloat(this.cursor.style.left) + (dx * 100 / this.getWidth())) / 100
+          let newProgress = (parseFloat(this.cursor.style.left) + (dx * 100 / this.getWidth())) / 100
+          if (newProgress < 0) { newProgress = 0 }
+          if (newProgress > 1) { newProgress = 1 }
+          console.log('DRAG EVENT newProgress: ', newProgress)
           this.renderProgress(newProgress, false)
         },
         // (dx, dy) => console.log('DRAG START EVENT ', dx, dy),
