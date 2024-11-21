@@ -163,7 +163,6 @@ class Renderer extends EventEmitter<RendererEvents> {
   }
 
   private makeCursorDraggable() {
-    console.log('call of: makeCursorDraggable')
     this.subscriptions.push(
       makeDraggable(
         this.cursor,
@@ -171,7 +170,6 @@ class Renderer extends EventEmitter<RendererEvents> {
           let newProgress = (parseFloat(this.cursor.style.left) + (dx * 100 / this.getWidth())) / 100
           if (newProgress < 0) { newProgress = 0 }
           if (newProgress > 1) { newProgress = 1 }
-          console.log('DRAG EVENT newProgress: ', newProgress, this)
           // this.wavesurfer?.setTime(newProgress)
           this.renderProgress(newProgress, false)
           const duration = this.wavesurfer?.getDuration()
@@ -577,7 +575,6 @@ class Renderer extends EventEmitter<RendererEvents> {
     const { clientWidth } = this.scrollContainer
 
     // Render a single canvas if it fits in the viewport
-    console.log('?????????? renderSingleCanvas')
     if (clientWidth * pixelRatio >= width) {
       this.renderSingleCanvas(channelData, options, clientWidth, height, 0, canvasContainer, progressContainer)
       return
@@ -694,7 +691,6 @@ class Renderer extends EventEmitter<RendererEvents> {
     const useParentWidth = this.options.fillParent && !this.isScrollable
     // Width of the waveform in pixels
     const width = (useParentWidth ? parentWidth : scrollWidth) * pixelRatio
-    console.log('???? is this is width ', width)
 
     // Set the width of the wrapper
     this.wrapper.style.width = useParentWidth ? '100%' : `${scrollWidth}px`

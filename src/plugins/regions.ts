@@ -501,29 +501,16 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
               regionInFound = true
               if (!this.regionIn || this.regionIn !== this.regions[i]) {
                 this.regionIn = this.regions[i]
-                console.log('REGION IN')
                 this.emit('region-in',  this.regions[i])
               }
               break
             }
           }
           if (!regionInFound && this.regionIn) {
-            console.log('REGION OUT')
             this.emit('region-out', this.regionIn)
             this.regionIn = null
           }
         }
-
-        // Trigger region-out when activeRegions include a un-played regions
-        // if (this.wavesurfer?.isPlaying()) {
-        //   activeRegions.forEach((region) => {
-        //     console.log('DEBIL BLYAT')
-        //     if (!playedRegions.includes(region)) {
-        //       this.emit('region-out', region)
-        //     }
-        //   })
-        // }
-
         // Update activeRegions only played regions
         activeRegions = playedRegions
       }),
