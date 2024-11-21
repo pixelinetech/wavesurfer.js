@@ -577,6 +577,7 @@ class Renderer extends EventEmitter<RendererEvents> {
     const { clientWidth } = this.scrollContainer
 
     // Render a single canvas if it fits in the viewport
+    console.log('?????????? renderSingleCanvas')
     if (clientWidth * pixelRatio >= width) {
       this.renderSingleCanvas(channelData, options, clientWidth, height, 0, canvasContainer, progressContainer)
       return
@@ -604,18 +605,11 @@ class Renderer extends EventEmitter<RendererEvents> {
       const offset = index * singleCanvasWidth
       const clampedWidth = Math.min(totalWidth - offset, singleCanvasWidth)
       if (clampedWidth <= 0) return
-      // TODO: calculate array of images related to current canvas.
-      // const imageCapacityInCanvas = Math.ceil(singleCanvasWidth / 90)
-      // const startImageIndex = imageCapacityInCanvas * index
-      // const endImageIndex = startImageIndex + imageCapacityInCanvas
-      // imagesArrayForCanvas = imagesGeneralArray.slice(startImageIndex, endImageIndex)
-      // todo: create all this images
       const data = channelData.map((channel) => {
         const start = Math.floor((offset / totalWidth) * channel.length)
         const end = Math.floor(((offset + clampedWidth) / totalWidth) * channel.length)
         return channel.slice(start, end)
       })
-      // todo: add imagesArrayForCanvas to props
       this.renderSingleCanvas(data, options, clampedWidth, height, offset, canvasContainer, progressContainer)
     }
 
@@ -700,6 +694,7 @@ class Renderer extends EventEmitter<RendererEvents> {
     const useParentWidth = this.options.fillParent && !this.isScrollable
     // Width of the waveform in pixels
     const width = (useParentWidth ? parentWidth : scrollWidth) * pixelRatio
+    console.log('???? is this is width ', width)
 
     // Set the width of the wrapper
     this.wrapper.style.width = useParentWidth ? '100%' : `${scrollWidth}px`
