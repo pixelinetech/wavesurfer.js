@@ -83,6 +83,9 @@ class Region extends EventEmitter<RegionEvents> {
   public regionsListIndex: number
   public divForDuration?: HTMLElement
 
+  public startPercentPosition: number
+  public endPercentPosition: number
+
   constructor(params: RegionParams, private totalDuration: number, private numberOfChannels = 0) {
     super()
 
@@ -98,6 +101,10 @@ class Region extends EventEmitter<RegionEvents> {
     this.channelIdx = params.channelIdx ?? -1
     this.contentEditable = params.contentEditable ?? this.contentEditable
     this.element = this.initElement()
+
+    this.startPercentPosition = (this.start / this.totalDuration) * 100
+    this.endPercentPosition = 100 - (((this.totalDuration - this.end) / this.totalDuration) * 100)
+
 
     this.regionsListIndex = 0
 
@@ -237,6 +244,9 @@ class Region extends EventEmitter<RegionEvents> {
     const end = (this.totalDuration - this.end) / this.totalDuration
     this.element.style.left = `${start * 100}%`
     this.element.style.right = `${end * 100}%`
+
+    this.startPercentPosition = start * 100
+    this.endPercentPosition = 100 - (end * 100)
 
     if (this.divForDuration) {
       const elementWidth = this.element.getBoundingClientRect().width
@@ -458,10 +468,14 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
   private regionsContainer: HTMLElement
   private regionIn: Region | null = null
 
+  public regionsGreyedOut: HTMLElement
+
   /** Create an instance of RegionsPlugin */
   constructor(options?: RegionsPluginOptions) {
     super(options)
     this.regionsContainer = this.initRegionsContainer()
+    this.regionsGreyedOut = this.initRegionsGreyedOut()
+    this.regionsContainer.appendChild(this.regionsGreyedOut)
   }
 
   /** Create an instance of RegionsPlugin */
@@ -529,6 +543,66 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
         pointerEvents: 'none',
       },
     })
+  }
+  private initRegionsGreyedOut(): HTMLElement {
+    // classList.add
+    const elem = createElement('div', {
+      style: {
+        position: 'absolute',
+        top: '0',
+        left: '0',
+        width: '100%',
+        height: '100%',
+        pointerEvents: 'none',
+      },
+    })
+    elem.classList.add('greyed_out_regions')
+    return elem
+  }
+
+  private updateRegionsGreyedOut() {
+    let gradientLine = ''
+    const dark = '#00000075'
+    const light = '#00000000'
+    const totalDuration = this.wavesurfer ? this.wavesurfer.getDuration() : 0
+    if (!totalDuration) {
+      console.error('totalDuration: ', totalDuration)
+    }
+    this.regions.forEach((r, i) => {
+      const start = r.startPercentPosition.toFixed(5)
+      const end = r.endPercentPosition.toFixed(5)
+      if (i === 0) {
+        if (r.start === 0) {
+          gradientLine += `${light} ${start}%, ${light} ${end}%`
+        }
+        else {
+          gradientLine += `${dark} 0%, ${dark} ${start}%, ${light} ${start}%, ${light} ${end}%`
+        }
+
+        const plusRegionStart = this.regions[i+1] ? this.regions[i+1].startPercentPosition.toFixed(5) : false
+        if (r.end !== totalDuration && plusRegionStart && plusRegionStart !== end) {
+          gradientLine += `, ${dark} ${end}%`
+        }
+        else if (!plusRegionStart) {
+          gradientLine += `, ${dark} ${end}%, ${dark} 100%`
+        }
+      }
+      else {
+        const minusRegionEnd = this.regions[i-1].endPercentPosition.toFixed(5)
+        if (minusRegionEnd !== start) {
+          gradientLine += `, ${dark} ${start}%, ${light} ${start}%`
+        }
+        gradientLine += `, ${light} ${end}%`
+        if (r.end !== totalDuration) {
+          gradientLine += `, ${dark} ${end}%`
+        }
+        if (i === this.regions.length - 1 && r.end !== totalDuration) {
+          gradientLine += `, ${dark} 100%`
+        }
+      }
+    })
+
+    this.regionsGreyedOut.style.background = ` linear-gradient(to right, ${gradientLine})`
   }
 
   /** Get all created regions */
@@ -616,6 +690,7 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
 
     const regionSubscriptions = [
       region.on('update', (side, element, dx) => {
+        this.updateRegionsGreyedOut()
         // Undefined side indicates that we are dragging not resizing
         if (!side) {
           this.adjustScroll(region, dx)
