@@ -146,8 +146,8 @@ class Region extends EventEmitter<RegionEvents> {
         style: {
           ...handleStyle,
           left: '0',
-          borderTopLeftRadius: '8px',
-          borderBottomLeftRadius: '8px',
+          // borderTopLeftRadius: '8px',
+          // borderBottomLeftRadius: '8px',
         },
       },
       element,
@@ -160,8 +160,8 @@ class Region extends EventEmitter<RegionEvents> {
         style: {
           ...handleStyle,
           right: '0',
-          borderTopRightRadius: '8px',
-          borderBottomRightRadius: '8px',
+          // borderTopRightRadius: '8px',
+          // borderBottomRightRadius: '8px',
         },
       },
       element,
