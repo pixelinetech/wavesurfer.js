@@ -16,6 +16,7 @@ export type RegionsPluginEvents = BasePluginEvents & {
   'region-updated': [region: Region]
   'region-removed': [region: Region]
   'region-clicked': [region: Region, e: MouseEvent]
+  'region-mouseup': [region: Region, e: MouseEvent]
   'region-double-clicked': [region: Region, e: MouseEvent]
   'region-in': [region: Region]
   'region-out': [region: Region] | null
@@ -32,6 +33,8 @@ export type RegionEvents = {
   play: []
   /** On mouse click */
   click: [event: MouseEvent]
+  /** On mouseup */
+  mouseup: [event: MouseEvent]
   /** Double click */
   dblclick: [event: MouseEvent]
   /** Mouse over */
@@ -274,6 +277,7 @@ class Region extends EventEmitter<RegionEvents> {
     if (!element) return
 
     element.addEventListener('click', (e) => this.emit('click', e))
+    element.addEventListener('mouseup', (e) => this.emit('mouseup', e))
     element.addEventListener('mouseenter', (e) => this.emit('over', e))
     element.addEventListener('mouseleave', (e) => this.emit('leave', e))
     element.addEventListener('dblclick', (e) => this.emit('dblclick', e))
@@ -295,6 +299,7 @@ class Region extends EventEmitter<RegionEvents> {
 
     if (this.contentEditable && this.content) {
       this.content.addEventListener('click', (e) => this.onContentClick(e))
+      this.content.addEventListener('mouseup', (e) => this.onContentMouseUp(e))
       this.content.addEventListener('blur', () => this.onContentBlur())
     }
   }
@@ -358,6 +363,9 @@ class Region extends EventEmitter<RegionEvents> {
     const contentContainer = event.target as HTMLDivElement
     contentContainer.focus()
     this.emit('click', event)
+  }
+  private onContentMouseUp(event: MouseEvent) {
+    this.emit('mouseup', event)
   }
 
   public onContentBlur() {
@@ -709,6 +717,9 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
 
       region.on('click', (e) => {
         this.emit('region-clicked', region, e)
+      }),
+      region.on('mouseup', (e) => {
+        this.emit('region-mouseup', region, e)
       }),
 
       region.on('dblclick', (e) => {

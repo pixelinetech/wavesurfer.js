@@ -124,6 +124,8 @@ export type WaveSurferEvents = {
   click: [relativeX: number, relativeY: number]
   /** When the user mousedown on the waveform */
   mousedown: [{}]
+  /** When the user mouseup on the waveform */
+  mouseup: [{}]
   /** When the user double-clicks on the waveform */
   dblclick: [relativeX: number, relativeY: number]
   /** When the user drags the cursor */
@@ -272,6 +274,10 @@ class WaveSurfer extends Player<WaveSurferEvents> {
       }),
       this.renderer.on('mousedown', (e) => {
         this.emit('mousedown', e)
+      }),
+
+      this.renderer.on('mouseup', (e) => {
+        this.emit('mouseup', e)
       }),
 
       // Double click

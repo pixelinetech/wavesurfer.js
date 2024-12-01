@@ -6,6 +6,7 @@ import WaveSurfer from "./wavesurfer.js";
 type RendererEvents = {
   click: [relativeX: number, relativeY: number]
   mousedown: [{}]
+  mouseup: [{}]
   dblclick: [relativeX: number, relativeY: number]
   drag: [relativeX: number]
   dragstart: [relativeX: number]
@@ -119,6 +120,9 @@ class Renderer extends EventEmitter<RendererEvents> {
     // Add a click listener to scrollContainer
     this.scrollContainer.addEventListener('mousedown', (e) => {
       this.emit('mousedown', e)
+    })
+    this.scrollContainer.addEventListener('mouseup', (e) => {
+      this.emit('mouseup', e)
     })
 
     // Re-render the waveform on container resize
