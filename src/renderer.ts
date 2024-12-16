@@ -777,9 +777,10 @@ class Renderer extends EventEmitter<RendererEvents> {
       }
     }
     else {
-      if (progressWidth < startEdge || progressWidth > endEdge) {
-        this.scrollContainer.scrollLeft = progressWidth - (this.options.autoCenter ? middle : 0)
-      }
+      // if (progressWidth < startEdge || progressWidth > endEdge) {
+      //   console.log('++++++ HEREEE ', middle)
+      //   this.scrollContainer.scrollLeft = progressWidth - (this.options.autoCenter ? middle : 0)
+      // }
 
       // Keep the cursor centered when playing
       const center = progressWidth - scrollLeft - middle
