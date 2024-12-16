@@ -89,6 +89,8 @@ class Region extends EventEmitter<RegionEvents> {
   public startPercentPosition: number
   public endPercentPosition: number
 
+  private runScrollAdjuster_Interval: NodeJS.Timeout
+
   constructor(params: RegionParams, private totalDuration: number, private numberOfChannels = 0) {
     super()
 
@@ -113,6 +115,12 @@ class Region extends EventEmitter<RegionEvents> {
 
     this.divForDuration = this.setDivForDuration()
 
+    this.runScrollAdjuster_Interval = setTimeout(()=>{},0)
+
+    document.addEventListener('mouseup', (e)=>{
+      this.documentMouseUpRegionsListener(e)
+    })
+
     this.setContent(params.content)
     this.setPart()
 
@@ -120,6 +128,11 @@ class Region extends EventEmitter<RegionEvents> {
 
     this.renderPosition()
     this.initMouseEvents()
+  }
+
+  public documentMouseUpRegionsListener(event: MouseEvent) {
+    console.log('documentMouseUpRegionsListener', event.target)
+    this.stopRunScrollAdjuster()
   }
 
   private clampPosition(time: number): number {
@@ -339,18 +352,89 @@ class Region extends EventEmitter<RegionEvents> {
       this.end = newEnd
 
       this.renderPosition()
+
       this.emit('update', side, element, dx)
     }
+    if (overlapWithAnotherRegion) {
+      console.log('STOPPED BY OVERLAP')
+      this.stopRunScrollAdjuster()
+    }
   }
-
+//////////////////////////////////////////////////////////////////////
+  private adjustScroll(dx= 0, side: any, element: HTMLElement | null | undefined) {
+    if (!element) return
+    let scrollContainer
+    if (side) {
+      scrollContainer = element?.parentElement?.parentElement?.parentElement?.parentElement
+    }
+    else {
+      scrollContainer = element?.parentElement?.parentElement?.parentElement
+    }
+    if (!scrollContainer) return
+    const { clientWidth, scrollWidth } = scrollContainer
+    if (scrollWidth <= clientWidth) return
+    const scrollBbox = scrollContainer.getBoundingClientRect()
+    const bbox = element.getBoundingClientRect()
+    const left = bbox.left - scrollBbox.left
+    const right = bbox.right - scrollBbox.left
+    if (side) {
+      if (left < 120 && dx < 0) {
+        const speed = 120 - left
+        this.runScrollAdjuster(false, speed, element, dx, side)
+      }
+      else if (right > clientWidth - 120 && dx > 0) {
+        const speed = clientWidth - 120 - right
+        this.runScrollAdjuster(true, speed, element, dx, side)
+      }
+      else {
+        this.stopRunScrollAdjuster()
+      }
+    }
+    else {
+      if (left < 0 && bbox.width < clientWidth && dx < 0) {
+        scrollContainer.scrollLeft += left
+      }
+      else if (right > clientWidth && bbox.width < clientWidth && dx > 0) {
+        scrollContainer.scrollLeft += right - clientWidth
+      }
+      else {
+        this.stopRunScrollAdjuster()
+      }
+    }
+  }
+  private runScrollAdjuster(direction = false, speed = 0, element: HTMLElement, dx= 0, side: any) {
+    console.log('runScrollAdjuster ' , speed)
+    if (speed > 15) { speed = 15 }
+    else if (speed < -15) { speed = -15 }
+    this.stopRunScrollAdjuster()
+    const scrollContainer = element?.parentElement?.parentElement?.parentElement?.parentElement
+    if (!scrollContainer) { return }
+    this.runScrollAdjuster_Interval = setInterval(()=>{
+      if (direction && dx > 0 && scrollContainer.scrollLeft < scrollContainer.scrollWidth) {
+        scrollContainer.scrollLeft -= speed
+        this._onUpdate(-speed, side, element)
+      }
+      if (!direction && dx < 0 && scrollContainer.scrollLeft > 0) {
+        scrollContainer.scrollLeft -= speed
+        this._onUpdate(-speed, side, element)
+      }
+    }, 30)
+  }
+  private stopRunScrollAdjuster() {
+    console.log('stopRunScrollAdjuster')
+    clearInterval(this.runScrollAdjuster_Interval)
+  }
+//////////////////////////////////////////////////////////////////////
   private onMove(dx: number, element?: HTMLElement | null) {
     if (!this.drag) return
     this._onUpdate(dx, null, element)
+    this.adjustScroll(dx, null, element)
   }
 
   private onResize(dx: number, side: 'start' | 'end' | null, element?: HTMLElement | null) {
     if (!this.resize) return
     this._onUpdate(dx, side, element)
+    this.adjustScroll(dx, side, element)
   }
 
   private onEndResizing() {
@@ -475,7 +559,6 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
   private regions: Region[] = []
   private regionsContainer: HTMLElement
   private regionIn: Region | null = null
-  private runScrollAdjuster_Interval: NodeJS.Timeout
 
   public regionsGreyedOut: HTMLElement
 
@@ -485,11 +568,6 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
     this.regionsContainer = this.initRegionsContainer()
     this.regionsGreyedOut = this.initRegionsGreyedOut()
     this.regionsContainer.appendChild(this.regionsGreyedOut)
-    this.runScrollAdjuster_Interval = setTimeout(()=>{},0)
-
-    document.addEventListener('mouseup', (e)=>{
-      this.documentMouseUpRegionsListener(e)
-    })
   }
 
   /** Create an instance of RegionsPlugin */
@@ -574,10 +652,7 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
     return elem
   }
 
-  public documentMouseUpRegionsListener(event: MouseEvent) {
-    console.log('documentMouseUpRegionsListener', event.target)
-    this.stopRunScrollAdjuster()
-  }
+
 
   private updateRegionsGreyedOut() {
     let gradientLine = ''
@@ -654,64 +729,7 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
     }, 10)
   }
 
-  private adjustScroll(region: Region, dx= 0, side: any, element: HTMLElement) {
-    const scrollContainer = this.wavesurfer?.getWrapper()?.parentElement
-    if (!scrollContainer) return
-    const { clientWidth, scrollWidth } = scrollContainer
-    if (scrollWidth <= clientWidth) return
-    const scrollBbox = scrollContainer.getBoundingClientRect()
-    const bbox = region.element.getBoundingClientRect()
-    const left = bbox.left - scrollBbox.left
-    const right = bbox.right - scrollBbox.left
 
-    if (side) {
-      if (left < 100 && dx < 0) {
-        this.runScrollAdjuster(false, 100 - left, region, element, element, dx, side)
-      }
-      else if (right > clientWidth - 100 && dx > 0) {
-        this.runScrollAdjuster(true, clientWidth - 100 - right, region, element, dx, side)
-      }
-      else {
-        this.stopRunScrollAdjuster()
-      }
-    }
-    else {
-      if (left < 0 && bbox.width < clientWidth && dx < 0) {
-        scrollContainer.scrollLeft += left
-      }
-      else if (right > clientWidth && bbox.width < clientWidth && dx > 0) {
-        scrollContainer.scrollLeft += right - clientWidth
-      }
-      else {
-        this.stopRunScrollAdjuster()
-      }
-    }
-  }
-
-  private stopRunScrollAdjuster() {
-    console.log('stopRunScrollAdjuster')
-    clearInterval(this.runScrollAdjuster_Interval)
-  }
-
-  private runScrollAdjuster(direction = false, speed = 0, region: Region, element: HTMLElement, dx= 0, side: any) {
-    console.log('runScrollAdjuster ' , speed)
-    if (speed > 10) { speed = 10 }
-    this.stopRunScrollAdjuster()
-    const scrollContainer = this.wavesurfer?.getWrapper()?.parentElement
-    if (!scrollContainer) { return }
-    this.runScrollAdjuster_Interval = setInterval(()=>{
-      if (direction && scrollContainer.scrollLeft < scrollContainer.scrollWidth) { // to the right
-        scrollContainer.scrollLeft += speed
-        console.log('region ', region)
-        debugger
-        this._onUpdate(dx, side, element)
-      }
-      else if (!direction && scrollContainer.scrollLeft > 0) { // to the left
-        scrollContainer.scrollLeft -= speed
-        console.log('region ', region)
-      }
-    }, 30)
-  }
 
   private virtualAppend(region: Region, container: HTMLElement, element: HTMLElement) {
 
@@ -752,8 +770,6 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
       region.on('update', (side, element, dx) => {
         this.updateRegionsGreyedOut()
         // Undefined side indicates that we are dragging not resizing
-        this.adjustScroll(region, dx, side, element)
-        // if (!side) {}
       }),
 
       region.on('update-end', () => {
@@ -771,7 +787,6 @@ class RegionsPlugin extends BasePlugin<RegionsPluginEvents, RegionsPluginOptions
       }),
       region.on('mouseup', (e) => {
         this.emit('region-mouseup', region, e)
-        this.stopRunScrollAdjuster()
       }),
 
       region.on('dblclick', (e) => {
